@@ -9,6 +9,7 @@ import numpy as np
 import PIL.PngImagePlugin
 from PIL import Image
 from matplotlib.animation import FFMpegFileWriter
+import matplotlib.patches as patches
 
 BACKGROUND_COLOUR = "#000000FF"
 FRAME_RATE = 24
@@ -28,17 +29,33 @@ class Scene:
 
 
 def draw_eye() -> Generator[PIL.PngImagePlugin.PngImageFile, None, None]:
-    angle = np.linspace(0, np.pi * 2.0, 361)
-    radius = np.array([num % 2 for num in range(0, 361)]) + 0.5
-    iris = np.vstack([angle.reshape(1, -1), radius.reshape(1, -1)])
+    interval_count = 361
+    angle = np.linspace(0, np.pi * 2.0, interval_count)
+    radius = np.array([num % 2 for num in range(0, interval_count)]) * 2.5 + 1.5
+    x = radius * np.cos(angle)
+    y = radius * np.sin(angle)
+    iris = np.vstack([x.reshape(1, -1), y.reshape(1, -1)])
+    intervals = np.linspace(-7.05, 7.05, interval_count)
+    positive_curve = 0.075 * intervals ** 2 - 3.75
+    negative_curve = -0.075 * (intervals ** 2) + 3.75
     im: Image = None
     figure = plt.figure(figsize=(19.2, 10.8))
 
-    for i in range(1, 364, 3):
+    for i in range(1, interval_count+3, 3):
         figure.clear()
-        ax = figure.add_axes([0.1, 0.2, 0.8, 0.8], projection="polar")
-        ax.plot(iris[0, 0:i], iris[1, 0:i], linewidth=5, color="blue")
+
+        # Draw Iris
+        ax = figure.add_axes([0, 0.2, 1.0, 0.8])
+        ax.fill_between(intervals[interval_count-i:], positive_curve[interval_count-i:], negative_curve[interval_count-i:], color='white', zorder=1)
+        ax.plot(iris[0, 0:i], iris[1, 0:i], linewidth=5, color="blue", zorder=3)
+        ax.fill_between(intervals, np.ones(interval_count) * 5, negative_curve, color='black', alpha=1.0, zorder=4)
+        ax.fill_between(intervals, -np.ones(interval_count) * 5, positive_curve, color='black', alpha=1.0, zorder=4)
+        ax.set_xlim(-9.6, 9.6)
+        ax.set_ylim(-4.32, 4.32)
         ax.axis("off")
+        patch = patches.Circle((0, 0), radius=4.02, color="black", zorder=2)
+        ax.add_patch(patch)
+
         buf = io.BytesIO()
         figure.savefig(buf, format="png", facecolor="None")
         buf.seek(0)
