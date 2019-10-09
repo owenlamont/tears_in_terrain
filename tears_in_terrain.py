@@ -19,6 +19,7 @@ class Scene:
     """
 
     start_frame: int
+    end_frame: int
     render_order: int
 
 
@@ -33,6 +34,7 @@ class Eye(Scene):
         pass
 
     def __iter__(self) -> Image:
+        im: Image = None
         figure = plt.figure(figsize=(19.2, 10.8))
 
         for i in range(1,364,3):
@@ -46,6 +48,9 @@ class Eye(Scene):
             im = Image.open(buf)
             yield im
 
+        while True:
+            yield im
+
 @dataclass
 class IntroText(Scene):
     """
@@ -57,6 +62,7 @@ class IntroText(Scene):
         Render the next frame
         :return: The next render as a PIL Image
         """
+        im: Image = None
         figure = plt.figure(figsize=(19.2, 10.8))
         alpha_array = np.power(np.linspace(0, 1, 60), 2)
         text_pos_list = [19, 47]
@@ -97,25 +103,8 @@ class IntroText(Scene):
                 im = Image.open(buf)
                 yield im
 
-        figure.clear()
-        text_axes = figure.add_axes([0.0, 0.0, 1.0, 1.0])
-        text_axes.axis("off")
-        text_axes.text(
-            LEFT_ALIGN,
-            0,
-            s=sentence,
-            fontsize=48,
-            style="oblique",
-            ha="left",
-            va="bottom",
-            color="white",
-            alpha=1.0,
-        )
-        buf = io.BytesIO()
-        figure.savefig(buf, format="png", facecolor="None")
-        buf.seek(0)
-        im = Image.open(buf)
-        yield im
+        while True:
+            yield im
 
 def main():
     anim_file_path = Path("./test.mp4")
@@ -123,9 +112,9 @@ def main():
 
     file_writer = FFMpegFileWriter(fps=FRAME_RATE)
     with file_writer.saving(figure, anim_file_path, dpi=100):
-        intro_text = IntroText(0, 0)
-        eye = Eye(0, 0)
-        active_scenes_list = [(iter(intro_text), intro_text.start_frame), (iter(eye), eye.start_frame)]
+        intro_text = IntroText(0, 121, 0)
+        eye = Eye(0, 121, 0)
+        active_scenes_list = [(iter(intro_text), intro_text.start_frame, intro_text.end_frame), (iter(eye), eye.start_frame, eye.end_frame)]
         for frame_number in itertools.count():
             figure.clear()
             render_axes = figure.add_axes([0.0, 0.0, 1.0, 1.0])
@@ -137,11 +126,11 @@ def main():
             for scene_index in range(active_scene_count-1,-1,-1):
                 scene = active_scenes_list[scene_index]
                 if frame_number >= scene[1]:
-                    try:
+                    if frame_number > scene[2]:
+                        del active_scenes_list[scene_index]
+                    else:
                         render_axes.imshow(next(scene[0]))
                         rendered_scene = True
-                    except StopIteration:
-                        del active_scenes_list[scene_index]
             if rendered_scene is True:
                 file_writer.grab_frame(facecolor=BACKGROUND_COLOUR)
 
