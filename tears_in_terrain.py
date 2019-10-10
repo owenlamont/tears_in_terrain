@@ -2,11 +2,10 @@ import io
 import itertools
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Generator, List
+from typing import Generator, List, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
-import PIL.PngImagePlugin
 from PIL import Image
 from matplotlib.animation import FFMpegFileWriter
 import matplotlib.patches as patches
@@ -25,10 +24,10 @@ class Scene:
     start_frame: int
     end_frame: int
     render_order: int
-    render_frame: Generator[PIL.PngImagePlugin.PngImageFile, None, None]
+    render_frame: Generator[Image.Image, None, None]
 
 
-def draw_eye() -> Generator[PIL.PngImagePlugin.PngImageFile, None, None]:
+def draw_eye() -> Generator[Image.Image, None, None]:
     interval_count = 361
     angle = np.linspace(0, np.pi * 2.0, interval_count)
     radius = np.array([num % 2 for num in range(0, interval_count)]) * 2.5 + 1.5
@@ -38,18 +37,38 @@ def draw_eye() -> Generator[PIL.PngImagePlugin.PngImageFile, None, None]:
     intervals = np.linspace(-7.05, 7.05, interval_count)
     positive_curve = 0.075 * intervals ** 2 - 3.75
     negative_curve = -0.075 * (intervals ** 2) + 3.75
-    im: Image = None
+    im: Optional[Image.Image] = None
     figure = plt.figure(figsize=(19.2, 10.8))
 
-    for i in range(1, interval_count+3, 3):
+    for i in range(1, interval_count + 3, 3):
         figure.clear()
 
         # Draw Iris
         ax = figure.add_axes([0, 0.2, 1.0, 0.8])
-        ax.fill_between(intervals[interval_count-i:], positive_curve[interval_count-i:], negative_curve[interval_count-i:], color='white', zorder=1)
+        ax.fill_between(
+            intervals[interval_count - i :],
+            positive_curve[interval_count - i :],
+            negative_curve[interval_count - i :],
+            color="white",
+            zorder=1,
+        )
         ax.plot(iris[0, 0:i], iris[1, 0:i], linewidth=5, color="blue", zorder=3)
-        ax.fill_between(intervals, np.ones(interval_count) * 5, negative_curve, color='black', alpha=1.0, zorder=4)
-        ax.fill_between(intervals, -np.ones(interval_count) * 5, positive_curve, color='black', alpha=1.0, zorder=4)
+        ax.fill_between(
+            intervals,
+            np.ones(interval_count) * 5,
+            negative_curve,
+            color="black",
+            alpha=1.0,
+            zorder=4,
+        )
+        ax.fill_between(
+            intervals,
+            -np.ones(interval_count) * 5,
+            positive_curve,
+            color="black",
+            alpha=1.0,
+            zorder=4,
+        )
         ax.set_xlim(-9.6, 9.6)
         ax.set_ylim(-4.32, 4.32)
         ax.axis("off")
@@ -66,12 +85,14 @@ def draw_eye() -> Generator[PIL.PngImagePlugin.PngImageFile, None, None]:
         yield im
 
 
-def draw_text(sentence: str, text_pos_list: List[int], alpha_transitions: int) -> Generator[PIL.PngImagePlugin.PngImageFile, None, None]:
+def draw_text(
+    sentence: str, text_pos_list: List[int], alpha_transitions: int
+) -> Generator[Image.Image, None, None]:
     """
     Render the next frame
     :return: The next render as a PIL Image
     """
-    im: Image = None
+    im: Optional[Image.Image] = None
     figure = plt.figure(figsize=(19.2, 10.8))
     alpha_array = np.power(np.linspace(0, 1, alpha_transitions), 2)
     for idx, text_pos in enumerate(text_pos_list):
@@ -114,18 +135,73 @@ def draw_text(sentence: str, text_pos_list: List[int], alpha_transitions: int) -
         yield im
 
 
+def draw_fire_automata() -> Generator[Image.Image, None, None]:
+    WIDTH = 64
+    WIDTH_MAX_INDEX = WIDTH - 1
+    HEIGHT = 65
+    HEIGHT_MAX_INDEX = HEIGHT - 1
+    DECAY = 0.95
+
+    indices = np.arange(WIDTH)
+    spawn_indices = np.random.choice(indices, 20)
+    non_spawn_indices = np.delete(indices, spawn_indices)
+
+    figure = plt.figure(figsize=(19.2, 10.8))
+    heatmap = np.zeros((HEIGHT, WIDTH))
+    flame_base = np.zeros(WIDTH)
+
+    for frame_number in range(96):
+        figure.clear()
+        render_axes = figure.add_axes([0.1, 0.2, 0.8, 0.8])
+
+        swap_spawn = np.random.randint(len(spawn_indices))
+        swap_non_spawn = np.random.randint(len(non_spawn_indices))
+        spawn_indices[swap_spawn], non_spawn_indices[swap_non_spawn] = (
+            non_spawn_indices[swap_non_spawn],
+            spawn_indices[swap_spawn],
+        )
+        flame_base *= 0
+        flame_base[spawn_indices] = 1
+        heatmap[HEIGHT_MAX_INDEX, :] = flame_base
+
+        delta = np.random.random((HEIGHT_MAX_INDEX, WIDTH, 3))
+        delta[:, WIDTH_MAX_INDEX, 0] = 0
+        delta[:, 0, 2] = 0
+        scaled_delta = delta / delta.sum(axis=2)[:, :, np.newaxis]
+        heatmap_source_part = np.zeros((HEIGHT_MAX_INDEX, WIDTH, 3))
+        heatmap_source_part[:, :WIDTH_MAX_INDEX, 0] = heatmap[1:HEIGHT, 1:WIDTH]
+        heatmap_source_part[:, :, 1] = heatmap[1:HEIGHT, :]
+        heatmap_source_part[:, 1:WIDTH, 2] = heatmap[1:HEIGHT, :WIDTH_MAX_INDEX]
+        heatmap[:HEIGHT_MAX_INDEX, :] = (heatmap_source_part * scaled_delta).sum(
+            axis=2
+        ) * DECAY
+
+        render_axes.imshow(
+            heatmap[:HEIGHT_MAX_INDEX, :], cmap="hot", interpolation="nearest"
+        )
+        render_axes.axis("off")
+
+        buf = io.BytesIO()
+        figure.savefig(buf, format="png", facecolor="None")
+        buf.seek(0)
+        im = Image.open(buf)
+        yield im
+
+
 def main():
     anim_file_path = Path("./test.mp4")
     figure = plt.figure(figsize=(19.2, 10.8))
 
     file_writer = FFMpegFileWriter(fps=FRAME_RATE)
     with file_writer.saving(figure, anim_file_path, dpi=100):
-        intro_text = Scene(0, 121, 0, draw_text("I have seen things you people would not believe",[19, 47],60))
+        intro_text = Scene(
+            0,
+            121,
+            0,
+            draw_text("I have seen things you people would not believe", [19, 47], 60),
+        )
         eye = Scene(0, 121, 0, draw_eye())
-        active_scenes_list: List[Scene] = [
-            intro_text,
-            eye,
-        ]
+        active_scenes_list: List[Scene] = [intro_text, eye]
         for frame_number in itertools.count():
             figure.clear()
             render_axes = figure.add_axes([0.0, 0.0, 1.0, 1.0])
