@@ -41,7 +41,7 @@ def convert_plot_to_image(figure: figure.Figure) -> Image.Image:
     return im
 
 
-def draw_eye() -> Generator[Image.Image, None, None]:
+def draw_eye(axes_dims: List[float]) -> Generator[Image.Image, None, None]:
     interval_count = 361
     angle = np.linspace(0, np.pi * 2.0, interval_count)
     radius = np.array([num % 2 for num in range(0, interval_count)]) * 2.5 + 1.5
@@ -58,7 +58,7 @@ def draw_eye() -> Generator[Image.Image, None, None]:
         figure.clear()
 
         # Draw Iris
-        ax = figure.add_axes([0, 0.2, 1.0, 0.8])
+        ax = figure.add_axes(axes_dims)
         ax.fill_between(
             intervals[interval_count - i :],
             positive_curve[interval_count - i :],
@@ -143,7 +143,7 @@ def draw_text(
         yield im
 
 
-def draw_fire_automata() -> Generator[Image.Image, None, None]:
+def draw_fire_automata(axes_dims: List[float]) -> Generator[Image.Image, None, None]:
     WIDTH = 64
     WIDTH_MAX_INDEX = WIDTH - 1
     HEIGHT = 65
@@ -158,9 +158,9 @@ def draw_fire_automata() -> Generator[Image.Image, None, None]:
     heatmap = np.zeros((HEIGHT, WIDTH))
     flame_base = np.zeros(WIDTH)
 
-    for frame_number in range(96):
+    for frame_number in range(200):
         figure.clear()
-        render_axes = figure.add_axes([0.1, 0.2, 0.8, 0.8])
+        render_axes = figure.add_axes(axes_dims)
 
         swap_spawn = np.random.randint(len(spawn_indices))
         swap_non_spawn = np.random.randint(len(non_spawn_indices))
@@ -205,8 +205,9 @@ def main():
             1,
             draw_text("I have seen things you people would not believe", [19, 47], 60),
         )
-        eye = Scene(0, 121, 0, draw_eye())
-        active_scenes_list: List[Scene] = [intro_text, eye]
+        eye = Scene(0, 121, 0, draw_eye(axes_dims=[0, 0.22, 1.0, 0.8]))
+        heatmap = Scene(0, 121, 2, draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6]))
+        active_scenes_list: List[Scene] = [intro_text, eye, heatmap]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
         for frame_number in itertools.count():
