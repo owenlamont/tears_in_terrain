@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Generator, List, Optional
 
+from matplotlib import figure
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -23,8 +24,21 @@ class Scene:
 
     start_frame: int
     end_frame: int
-    render_order: int
+    zorder: float
     render_frame: Generator[Image.Image, None, None]
+
+
+def convert_plot_to_image(figure: figure.Figure) -> Image.Image:
+    """
+    Converts the specified Matplotlib Figure into a PIL Image
+    :param figure: Figure to convert
+    :return: PIL Image
+    """
+    buf = io.BytesIO()
+    figure.savefig(buf, format="png", facecolor="None")
+    buf.seek(0)
+    im = Image.open(buf)
+    return im
 
 
 def draw_eye() -> Generator[Image.Image, None, None]:
@@ -75,10 +89,7 @@ def draw_eye() -> Generator[Image.Image, None, None]:
         patch = patches.Circle((0, 0), radius=4.02, color="black", zorder=2)
         ax.add_patch(patch)
 
-        buf = io.BytesIO()
-        figure.savefig(buf, format="png", facecolor="None")
-        buf.seek(0)
-        im = Image.open(buf)
+        im = convert_plot_to_image(figure)
         yield im
 
     while True:
@@ -125,10 +136,7 @@ def draw_text(
                 color="white",
                 alpha=alpha,
             )
-            buf = io.BytesIO()
-            figure.savefig(buf, format="png", facecolor="None")
-            buf.seek(0)
-            im = Image.open(buf)
+            im = convert_plot_to_image(figure)
             yield im
 
     while True:
@@ -181,10 +189,7 @@ def draw_fire_automata() -> Generator[Image.Image, None, None]:
         )
         render_axes.axis("off")
 
-        buf = io.BytesIO()
-        figure.savefig(buf, format="png", facecolor="None")
-        buf.seek(0)
-        im = Image.open(buf)
+        im = convert_plot_to_image(figure)
         yield im
 
 
@@ -197,11 +202,13 @@ def main():
         intro_text = Scene(
             0,
             121,
-            0,
+            1,
             draw_text("I have seen things you people would not believe", [19, 47], 60),
         )
         eye = Scene(0, 121, 0, draw_eye())
         active_scenes_list: List[Scene] = [intro_text, eye]
+        active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
+
         for frame_number in itertools.count():
             figure.clear()
             render_axes = figure.add_axes([0.0, 0.0, 1.0, 1.0])
