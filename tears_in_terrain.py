@@ -41,7 +41,9 @@ def convert_plot_to_image(figure: figure.Figure) -> Image.Image:
     return im
 
 
-def draw_eye(axes_dims: List[float]) -> Generator[Image.Image, None, None]:
+def draw_eye(
+    axes_dims: List[float], persist_frames: int, fade_out_frames: int
+) -> Generator[Image.Image, None, None]:
     interval_count = 361
     angle = np.linspace(0, np.pi * 2.0, interval_count)
     radius = np.array([num % 2 for num in range(0, interval_count)]) * 2.5 + 1.5
@@ -51,7 +53,7 @@ def draw_eye(axes_dims: List[float]) -> Generator[Image.Image, None, None]:
     intervals = np.linspace(-7.05, 7.05, interval_count)
     positive_curve = 0.075 * intervals ** 2 - 3.75
     negative_curve = -0.075 * (intervals ** 2) + 3.75
-    im: Optional[Image.Image] = None
+    im: Image.Image = Image.fromarray(np.zeros((1, 1, 4), dtype=np.uint8))
     figure = plt.figure(figsize=(19.2, 10.8))
 
     for i in range(1, interval_count + 3, 3):
@@ -92,18 +94,38 @@ def draw_eye(axes_dims: List[float]) -> Generator[Image.Image, None, None]:
         im = convert_plot_to_image(figure)
         yield im
 
+    # Keep the image for this many frames
+    for i in range(persist_frames):
+        yield im
+
+    # Fade out the image over this many frames
+    fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
+    for alpha in fade_out_alpha:
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    # Stay black for the remainder
+    black_screen = np.array(im)
+    black_screen[:, :, :] = 0
+    im = Image.fromarray(black_screen)
     while True:
         yield im
 
 
 def draw_text(
-    sentence: str, text_pos_list: List[int], alpha_transitions: int
+    sentence: str,
+    text_pos_list: List[int],
+    alpha_transitions: int,
+    persist_frames: int,
+    fade_out_frames: int,
 ) -> Generator[Image.Image, None, None]:
     """
     Render the next frame
     :return: The next render as a PIL Image
     """
-    im: Optional[Image.Image] = None
+    im: Image.Image = Image.fromarray(np.zeros((1, 1, 4), dtype=np.uint8))
     figure = plt.figure(figsize=(19.2, 10.8))
     alpha_array = np.power(np.linspace(0, 1, alpha_transitions), 2)
     for idx, text_pos in enumerate(text_pos_list):
@@ -139,11 +161,29 @@ def draw_text(
             im = convert_plot_to_image(figure)
             yield im
 
+    # Keep the image for this many frames
+    for i in range(persist_frames):
+        yield im
+
+    # Fade out the image over this many frames
+    fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
+    for alpha in fade_out_alpha:
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    # Stay black for the remainder
+    black_screen = np.array(im)
+    black_screen[:, :, :] = 0
+    im = Image.fromarray(black_screen)
     while True:
         yield im
 
 
-def draw_fire_automata(axes_dims: List[float]) -> Generator[Image.Image, None, None]:
+def draw_fire_automata(
+    axes_dims: List[float], fade_in_frames: int
+) -> Generator[Image.Image, None, None]:
     WIDTH = 64
     WIDTH_MAX_INDEX = WIDTH - 1
     HEIGHT = 65
@@ -201,12 +241,30 @@ def main():
     with file_writer.saving(figure, anim_file_path, dpi=100):
         intro_text = Scene(
             0,
-            121,
+            169,
             1,
-            draw_text("I have seen things you people would not believe", [19, 47], 60),
+            draw_text(
+                sentence="I have seen things you people would not believe",
+                text_pos_list=[19, 47],
+                alpha_transitions=60,
+                persist_frames=0,
+                fade_out_frames=24,
+            ),
         )
-        eye = Scene(0, 121, 0, draw_eye(axes_dims=[0, 0.22, 1.0, 0.8]))
-        heatmap = Scene(0, 121, 2, draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6]))
+        eye = Scene(
+            0,
+            169,
+            0,
+            draw_eye(
+                axes_dims=[0, 0.22, 1.0, 0.8], persist_frames=24, fade_out_frames=24
+            ),
+        )
+        heatmap = Scene(
+            0,
+            169,
+            2,
+            draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6], fade_in_frames=24),
+        )
         active_scenes_list: List[Scene] = [intro_text, eye, heatmap]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
