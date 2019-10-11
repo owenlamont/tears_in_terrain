@@ -237,6 +237,18 @@ def draw_fire_automata(
     fire_automata = FireAutomata(height=65, width=64, decay=0.95, spawn_points=20)
     figure = plt.figure(figsize=(19.2, 10.8))
 
+    fade_in_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
+    for alpha in fade_in_alpha:
+        figure.clear()
+        render_axes = figure.add_axes(axes_dims)
+        fire_automata.update_heatmap()
+        render_axes.imshow(
+            fire_automata.heatmap[:-1, :], cmap="hot", interpolation="nearest", alpha=alpha
+        )
+        render_axes.axis("off")
+        im = convert_plot_to_image(figure)
+        yield im
+
     for frame_number in range(200):
         figure.clear()
         render_axes = figure.add_axes(axes_dims)
@@ -276,10 +288,10 @@ def main():
             ),
         )
         heatmap = Scene(
-            0,
-            169,
+            121,
+            217,
             2,
-            draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6], fade_in_frames=24),
+            draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6], fade_in_frames=48),
         )
         active_scenes_list: List[Scene] = [intro_text, eye, heatmap]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
