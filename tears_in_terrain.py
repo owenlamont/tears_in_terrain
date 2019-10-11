@@ -1,6 +1,6 @@
 import io
 import itertools
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Generator, List, Optional
 
@@ -181,54 +181,70 @@ def draw_text(
         yield im
 
 
+@dataclass
+class FireAutomata:
+    height: int
+    width: int
+    decay: float
+    spawn_points: int
+    heatmap: np.ndarray = field(init=False)
+    spawn_indices: np.ndarray = field(init=False)
+    non_spawn_indices: np.ndarray = field(init=False)
+    flame_base: np.ndarray = field(init=False)
+    height_max_index: int = field(init=False)
+    width_max_index: int = field(init=False)
+
+    def __post_init__(self):
+        self.heatmap = np.zeros((self.height, self.width))
+        indices = np.arange(self.width)
+        self.spawn_indices = np.random.choice(indices, 20)
+        self.non_spawn_indices = np.delete(indices, self.spawn_points)
+        self.flame_base = np.zeros(self.width)
+        self.height_max_index = self.height - 1
+        self.width_max_index = self.width - 1
+
+    def update_heatmap(self):
+        swap_spawn = np.random.randint(len(self.spawn_indices))
+        swap_non_spawn = np.random.randint(len(self.non_spawn_indices))
+        self.spawn_indices[swap_spawn], self.non_spawn_indices[swap_non_spawn] = (
+            self.non_spawn_indices[swap_non_spawn],
+            self.spawn_indices[swap_spawn],
+        )
+        self.flame_base *= 0
+        self.flame_base[self.spawn_indices] = 1
+        self.heatmap[self.height_max_index, :] = self.flame_base
+
+        delta = np.random.random((self.height_max_index, self.width, 3))
+        delta[:, self.width_max_index, 0] = 0
+        delta[:, 0, 2] = 0
+        scaled_delta = delta / delta.sum(axis=2)[:, :, np.newaxis]
+        heatmap_source_part = np.zeros((self.height_max_index, self.width, 3))
+        heatmap_source_part[:, : self.width_max_index, 0] = self.heatmap[
+            1 : self.height, 1 : self.width
+        ]
+        heatmap_source_part[:, :, 1] = self.heatmap[1 : self.height, :]
+        heatmap_source_part[:, 1 : self.width, 2] = self.heatmap[
+            1 : self.height, : self.width_max_index
+        ]
+        self.heatmap[: self.height_max_index, :] = (
+            heatmap_source_part * scaled_delta
+        ).sum(axis=2) * self.decay
+
+
 def draw_fire_automata(
     axes_dims: List[float], fade_in_frames: int
 ) -> Generator[Image.Image, None, None]:
-    WIDTH = 64
-    WIDTH_MAX_INDEX = WIDTH - 1
-    HEIGHT = 65
-    HEIGHT_MAX_INDEX = HEIGHT - 1
-    DECAY = 0.95
-
-    indices = np.arange(WIDTH)
-    spawn_indices = np.random.choice(indices, 20)
-    non_spawn_indices = np.delete(indices, spawn_indices)
-
+    fire_automata = FireAutomata(height=65, width=64, decay=0.95, spawn_points=20)
     figure = plt.figure(figsize=(19.2, 10.8))
-    heatmap = np.zeros((HEIGHT, WIDTH))
-    flame_base = np.zeros(WIDTH)
 
     for frame_number in range(200):
         figure.clear()
         render_axes = figure.add_axes(axes_dims)
-
-        swap_spawn = np.random.randint(len(spawn_indices))
-        swap_non_spawn = np.random.randint(len(non_spawn_indices))
-        spawn_indices[swap_spawn], non_spawn_indices[swap_non_spawn] = (
-            non_spawn_indices[swap_non_spawn],
-            spawn_indices[swap_spawn],
-        )
-        flame_base *= 0
-        flame_base[spawn_indices] = 1
-        heatmap[HEIGHT_MAX_INDEX, :] = flame_base
-
-        delta = np.random.random((HEIGHT_MAX_INDEX, WIDTH, 3))
-        delta[:, WIDTH_MAX_INDEX, 0] = 0
-        delta[:, 0, 2] = 0
-        scaled_delta = delta / delta.sum(axis=2)[:, :, np.newaxis]
-        heatmap_source_part = np.zeros((HEIGHT_MAX_INDEX, WIDTH, 3))
-        heatmap_source_part[:, :WIDTH_MAX_INDEX, 0] = heatmap[1:HEIGHT, 1:WIDTH]
-        heatmap_source_part[:, :, 1] = heatmap[1:HEIGHT, :]
-        heatmap_source_part[:, 1:WIDTH, 2] = heatmap[1:HEIGHT, :WIDTH_MAX_INDEX]
-        heatmap[:HEIGHT_MAX_INDEX, :] = (heatmap_source_part * scaled_delta).sum(
-            axis=2
-        ) * DECAY
-
+        fire_automata.update_heatmap()
         render_axes.imshow(
-            heatmap[:HEIGHT_MAX_INDEX, :], cmap="hot", interpolation="nearest"
+            fire_automata.heatmap[:-1, :], cmap="hot", interpolation="nearest"
         )
         render_axes.axis("off")
-
         im = convert_plot_to_image(figure)
         yield im
 
