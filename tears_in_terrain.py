@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 from matplotlib.animation import FFMpegFileWriter
 import matplotlib.patches as patches
+import scipy.stats as stats
 
 BACKGROUND_COLOUR = "#000000FF"
 FRAME_RATE = 24
@@ -243,7 +244,10 @@ def draw_fire_automata(
         render_axes = figure.add_axes(axes_dims)
         fire_automata.update_heatmap()
         render_axes.imshow(
-            fire_automata.heatmap[:-1, :], cmap="hot", interpolation="nearest", alpha=alpha
+            fire_automata.heatmap[:-1, :],
+            cmap="hot",
+            interpolation="nearest",
+            alpha=alpha,
         )
         render_axes.axis("off")
         im = convert_plot_to_image(figure)
@@ -258,6 +262,72 @@ def draw_fire_automata(
         )
         render_axes.axis("off")
         im = convert_plot_to_image(figure)
+        yield im
+
+
+def draw_gaussian(
+    axes_dims: List[float],
+    fade_in_frames: int,
+    update_frames: int,
+    fade_out_frames: int,
+) -> Generator[Image.Image, None, None]:
+    figure = plt.figure(figsize=(19.2, 10.8))
+    with plt.style.context("dark_background"):
+        ax = figure.add_axes(axes_dims)
+        ax.spines["right"].set_visible(False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["left"].set_linewidth(2)
+        ax.spines["bottom"].set_linewidth(2)
+        ax.set_xlim((-8.8, 8.8))
+        ax.set_ylim((-0.02, 0.42))
+    im = convert_plot_to_image(figure)
+    # [0.05, 0.1, 0.9, 0.25]
+
+    # Fade in the axes over this many frames
+    fade_out_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
+    for alpha in fade_out_alpha:
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    # Animate the Guassian
+    mu = 0
+    variance = 1
+    sigma = np.sqrt(variance)
+    for frame in range(0,update_frames*4,4):
+        figure.clear()
+        with plt.style.context("dark_background"):
+            ax = figure.add_axes(axes_dims)
+            x = np.linspace(mu - 8 * sigma, mu + 8 * sigma, update_frames*4)
+            ax.plot(
+                x[:frame],
+                stats.norm.pdf(x[:frame], mu, sigma),
+                linewidth=3,
+                color="skyblue",
+            )
+            ax.spines["right"].set_visible(False)
+            ax.spines["top"].set_visible(False)
+            ax.spines["left"].set_linewidth(2)
+            ax.spines["bottom"].set_linewidth(2)
+            ax.set_xlim((-8.8, 8.8))
+            ax.set_ylim((-0.02, 0.42))
+        im = convert_plot_to_image(figure)
+        yield im
+
+    # Fade out the image over this many frames
+    fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
+    for alpha in fade_out_alpha:
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    # Stay black for the remainder
+    black_screen = np.array(im)
+    black_screen[:, :, :] = 0
+    im = Image.fromarray(black_screen)
+    while True:
         yield im
 
 
@@ -281,19 +351,42 @@ def main():
         )
         eye = Scene(
             0,
-            169,
+            193,
             0,
             draw_eye(
-                axes_dims=[0, 0.22, 1.0, 0.8], persist_frames=24, fade_out_frames=24
+                axes_dims=[0, 0.22, 1.0, 0.8], persist_frames=48, fade_out_frames=24
             ),
         )
         heatmap = Scene(
             121,
-            217,
+            265,
             2,
             draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6], fade_in_frames=48),
         )
-        active_scenes_list: List[Scene] = [intro_text, eye, heatmap]
+        gaussian = Scene(
+            169,
+            265,
+            1,
+            draw_gaussian(
+                axes_dims=[0.05, 0.1, 0.9, 0.25],
+                fade_in_frames=24,
+                update_frames=72,
+                fade_out_frames=0,
+            ),
+        )
+        heatmaps_text = Scene(
+            145,
+            265,
+            1,
+            draw_text(
+                sentence="Heat maps on fire off the shoulder of a Gaussian",
+                text_pos_list=[17, 48],
+                alpha_transitions=60,
+                persist_frames=0,
+                fade_out_frames=0,
+            ),
+        )
+        active_scenes_list: List[Scene] = [intro_text, eye, heatmap, gaussian, heatmaps_text]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
         for frame_number in itertools.count():
