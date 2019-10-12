@@ -169,10 +169,22 @@ def draw_text(
     # Fade out the image over this many frames
     fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
     for alpha in fade_out_alpha:
-        pixels = np.array(im)
-        alpha_layer = pixels[:, :, 3]
-        alpha_layer[alpha_layer > 0] = int(255 * alpha)
-        yield Image.fromarray(pixels)
+        figure.clear()
+        text_axes = figure.add_axes([0.0, 0.0, 1.0, 1.0])
+        text_axes.axis("off")
+        text_axes.text(
+            LEFT_ALIGN,
+            0,
+            s=sentence,
+            fontsize=48,
+            style="oblique",
+            ha="left",
+            va="bottom",
+            color="white",
+            alpha=alpha,
+        )
+        im = convert_plot_to_image(figure)
+        yield im
 
     # Stay black for the remainder
     black_screen = np.array(im)
@@ -295,6 +307,7 @@ def draw_gaussian(
     axes_dims: List[float],
     fade_in_frames: int,
     update_frames: int,
+    persist_frames: int,
     fade_out_frames: int,
 ) -> Generator[Image.Image, None, None]:
     figure = plt.figure(figsize=(19.2, 10.8))
@@ -341,6 +354,9 @@ def draw_gaussian(
         im = convert_plot_to_image(figure)
         yield im
 
+    for frame in range(persist_frames):
+        yield im
+
     # Fade out the image over this many frames
     fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
     for alpha in fade_out_alpha:
@@ -380,40 +396,41 @@ def main():
             193,
             0,
             draw_eye(
-                axes_dims=[0, 0.22, 1.0, 0.8], persist_frames=48, fade_out_frames=24
+                axes_dims=[0, 0.22, 1.0, 0.8], persist_frames=24, fade_out_frames=24
             ),
         )
         heatmap = Scene(
             121,
-            289,
+            313,
             2,
             draw_fire_automata(
                 axes_dims=[0.2, 0.35, 0.6, 0.6],
-                fade_in_frames=48,
-                update_frames=96,
+                fade_in_frames=24,
+                update_frames=144,
                 fade_out_frames=24,
             ),
         )
         gaussian = Scene(
             169,
-            289,
+            313,
             1,
             draw_gaussian(
                 axes_dims=[0.05, 0.1, 0.9, 0.25],
                 fade_in_frames=24,
                 update_frames=72,
+                persist_frames=24,
                 fade_out_frames=24,
             ),
         )
         heatmaps_text = Scene(
             145,
-            289,
+            313,
             1,
             draw_text(
                 sentence="Heat maps on fire off the shoulder of a Gaussian",
                 text_pos_list=[17, 48],
                 alpha_transitions=60,
-                persist_frames=0,
+                persist_frames=24,
                 fade_out_frames=24,
             ),
         )
