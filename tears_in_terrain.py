@@ -233,8 +233,12 @@ class FireAutomata:
 
 
 def draw_fire_automata(
-    axes_dims: List[float], fade_in_frames: int
+    axes_dims: List[float],
+    fade_in_frames: int,
+    update_frames: int,
+    fade_out_frames: int,
 ) -> Generator[Image.Image, None, None]:
+    im: Image.Image = Image.fromarray(np.zeros((1, 1, 4), dtype=np.uint8))
     fire_automata = FireAutomata(height=65, width=64, decay=0.95, spawn_points=20)
     figure = plt.figure(figsize=(19.2, 10.8))
 
@@ -253,7 +257,7 @@ def draw_fire_automata(
         im = convert_plot_to_image(figure)
         yield im
 
-    for frame_number in range(200):
+    for frame_number in range(update_frames):
         figure.clear()
         render_axes = figure.add_axes(axes_dims)
         fire_automata.update_heatmap()
@@ -262,6 +266,28 @@ def draw_fire_automata(
         )
         render_axes.axis("off")
         im = convert_plot_to_image(figure)
+        yield im
+
+    fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
+    for alpha in fade_out_alpha:
+        figure.clear()
+        render_axes = figure.add_axes(axes_dims)
+        fire_automata.update_heatmap()
+        render_axes.imshow(
+            fire_automata.heatmap[:-1, :],
+            cmap="hot",
+            interpolation="nearest",
+            alpha=alpha,
+        )
+        render_axes.axis("off")
+        im = convert_plot_to_image(figure)
+        yield im
+
+    # Stay black for the remainder
+    black_screen = np.array(im)
+    black_screen[:, :, :] = 0
+    im = Image.fromarray(black_screen)
+    while True:
         yield im
 
 
@@ -295,11 +321,11 @@ def draw_gaussian(
     mu = 0
     variance = 1
     sigma = np.sqrt(variance)
-    for frame in range(0,update_frames*4,4):
+    for frame in range(0, update_frames * 4, 4):
         figure.clear()
         with plt.style.context("dark_background"):
             ax = figure.add_axes(axes_dims)
-            x = np.linspace(mu - 8 * sigma, mu + 8 * sigma, update_frames*4)
+            x = np.linspace(mu - 8 * sigma, mu + 8 * sigma, update_frames * 4)
             ax.plot(
                 x[:frame],
                 stats.norm.pdf(x[:frame], mu, sigma),
@@ -359,34 +385,45 @@ def main():
         )
         heatmap = Scene(
             121,
-            265,
+            289,
             2,
-            draw_fire_automata(axes_dims=[0.2, 0.35, 0.6, 0.6], fade_in_frames=48),
+            draw_fire_automata(
+                axes_dims=[0.2, 0.35, 0.6, 0.6],
+                fade_in_frames=48,
+                update_frames=96,
+                fade_out_frames=24,
+            ),
         )
         gaussian = Scene(
             169,
-            265,
+            289,
             1,
             draw_gaussian(
                 axes_dims=[0.05, 0.1, 0.9, 0.25],
                 fade_in_frames=24,
                 update_frames=72,
-                fade_out_frames=0,
+                fade_out_frames=24,
             ),
         )
         heatmaps_text = Scene(
             145,
-            265,
+            289,
             1,
             draw_text(
                 sentence="Heat maps on fire off the shoulder of a Gaussian",
                 text_pos_list=[17, 48],
                 alpha_transitions=60,
                 persist_frames=0,
-                fade_out_frames=0,
+                fade_out_frames=24,
             ),
         )
-        active_scenes_list: List[Scene] = [intro_text, eye, heatmap, gaussian, heatmaps_text]
+        active_scenes_list: List[Scene] = [
+            intro_text,
+            eye,
+            heatmap,
+            gaussian,
+            heatmaps_text,
+        ]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
         for frame_number in itertools.count():
