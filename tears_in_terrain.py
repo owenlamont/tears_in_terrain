@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from matplotlib.animation import FFMpegFileWriter
+from matplotlib import collections as mc
 import matplotlib.patches as patches
 import scipy.stats as stats
 
@@ -323,8 +324,8 @@ def draw_gaussian(
     # [0.05, 0.1, 0.9, 0.25]
 
     # Fade in the axes over this many frames
-    fade_out_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
-    for alpha in fade_out_alpha:
+    fade_in_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
+    for alpha in fade_in_alpha:
         pixels = np.array(im)
         alpha_layer = pixels[:, :, 3]
         alpha_layer[alpha_layer > 0] = int(255 * alpha)
@@ -372,6 +373,43 @@ def draw_gaussian(
     while True:
         yield im
 
+
+def draw_learning(
+    axes_dims: List[float],
+    fade_in_frames: int,
+    update_frames: int,
+    persist_frames: int,
+    fade_out_frames: int,
+) -> Generator[Image.Image, None, None]:
+    weights = 41
+    lines = np.zeros((weights + 2, 2, 2))
+    lines[:weights, 0, 0] = 20
+    lines[:weights, 0, 1] = np.linspace(-420, 420, weights)
+    lines[:weights, 1, 0] = 300
+    lines[:weights, 1, 1] = np.linspace(-100, 100, weights)
+    lines[weights] = np.array([[470, 0], [590, 0]])
+    lines[weights + 1] = np.array([[750, 0], [870, 0]])
+    colors = np.zeros((weights + 2, 4))
+    colors[:, [2, 3]] = 1
+    line_widths = np.ones(weights + 2) * 2
+    line_widths[weights:] = 5
+
+    lc = mc.LineCollection(lines, colors=colors, linewidths=line_widths)
+    figure = plt.figure(figsize=(19.2, 10.8))
+    with plt.style.context("dark_background"):
+        topo_ax = figure.add_axes([0.0, 0.2, 0.5, 0.8])
+        topo_ax.set_xlim((0, 960))
+        topo_ax.set_ylim((-420, 420))
+        topo_ax.axis("off")
+        topo_ax.add_collection(lc)
+        topo_ax.text(310, -20, r"$\sum_{j=1}^n x_jw_j$", fontsize=30)
+        topo_ax.text(604, -10, r"$\frac{\mathrm{1} }{\mathrm{1} + e^{-net}}$", fontsize=30)
+        for i in range(41):
+            topo_ax.text(0, -425 + i * 21, "1", fontsize=10)
+        topo_ax.text(880, -10, "0.7", fontsize=20)
+        figure.set_facecolor("None")
+    im = convert_plot_to_image(figure)
+    yield im
 
 def main():
     anim_file_path = Path("./test.mp4")
