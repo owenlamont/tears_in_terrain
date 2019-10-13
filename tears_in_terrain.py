@@ -12,6 +12,9 @@ from matplotlib.animation import FFMpegFileWriter
 from matplotlib import collections as mc
 import matplotlib.patches as patches
 import scipy.stats as stats
+import geopandas as gpd
+from shapely.geometry import Polygon
+import copy
 
 BACKGROUND_COLOUR = "#000000FF"
 FRAME_RATE = 24
@@ -501,6 +504,109 @@ def draw_learning_curve(
         yield im
 
 
+def draw_terrain(
+    axes_dims: List[float],
+    fade_in_frames: int,
+    update_frames: int,
+    fade_out_frames: int,
+    frame_jiggle: float
+) -> Generator[Image.Image, None, None]:
+    coastlines_gdf = gpd.read_file("./natural_earth_vector/10m_physical/ne_10m_land_scale_rank2.shp")
+    populated_gdf = gpd.read_file("./natural_earth_vector/10m_cultural/ne_10m_populated_places.dbf")
+    faults_gdf = gpd.read_file("./GIS Files/Shapefile/QFaults.shp")
+    area = Polygon([(-124, 33.5), (-124, 38), (-115, 38), (-115, 33.5)])
+    pop_mask = populated_gdf.within(area)
+    california_gdf = populated_gdf.loc[pop_mask]
+    california_highpop_gdf = california_gdf[california_gdf["SCALERANK"] < 3]
+    fault_mask = faults_gdf.intersects(area)
+    im: Image.Image = Image.fromarray(np.zeros((1, 1, 4), dtype=np.uint8))
+
+    figure = plt.figure(figsize=(19.2, 10.8))
+    fade_in_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
+    for alpha in fade_in_alpha:
+        figure.clear()
+        with plt.style.context("dark_background"):
+            ax = figure.add_axes(axes_dims)
+            california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
+            coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
+            for x, y, label in zip(california_highpop_gdf.geometry.x, california_highpop_gdf.geometry.y,
+                                   california_highpop_gdf["NAME"]):
+                ax.annotate(label, xy=(x, y), xytext=(15, -5), textcoords="offset points", zorder=3, fontsize=30)
+            ax.set_xlim(-125, -116.111)
+            ax.set_ylim(33.5, 38)
+            fault_mask = faults_gdf.intersects(area)
+            faults_gdf.loc[fault_mask].plot(color="red", ax=ax, zorder=1, alpha=0, linewidth=2)
+            figure.set_facecolor("None")
+            ax.axis("off")
+        im = convert_plot_to_image(figure)
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    for frame_number in range(update_frames):
+        figure.clear()
+        with plt.style.context("dark_background"):
+            jiggled_dims = copy.deepcopy(axes_dims)
+            x_jiggle = np.random.random()
+            x_jiggle = (x_jiggle * 2 - 1) * frame_jiggle
+            y_jiggle = np.random.random()
+            y_jiggle = (y_jiggle * 2 - 1) * frame_jiggle
+            jiggled_dims[0] += x_jiggle
+            jiggled_dims[1] += y_jiggle
+            tear_alpha = (np.sin(frame_number/4) + 1) / 2
+            ax = figure.add_axes(jiggled_dims)
+            california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
+            coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
+            for x, y, label in zip(california_highpop_gdf.geometry.x, california_highpop_gdf.geometry.y,
+                                   california_highpop_gdf["NAME"]):
+                ax.annotate(label, xy=(x, y), xytext=(15, -5), textcoords="offset points", zorder=3, fontsize=30)
+            ax.set_xlim(-125, -116.111)
+            ax.set_ylim(33.5, 38)
+            faults_gdf.loc[fault_mask].plot(color="red", ax=ax, zorder=1, alpha=tear_alpha, linewidth=2)
+            figure.set_facecolor("None")
+            ax.axis("off")
+        im = convert_plot_to_image(figure)
+        yield im
+
+    fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
+    for frame_number in range(fade_out_frames):
+        alpha = fade_out_alpha[frame_number]
+        figure.clear()
+        with plt.style.context("dark_background"):
+            jiggled_dims = copy.deepcopy(axes_dims)
+            x_jiggle = np.random.random()
+            x_jiggle = (x_jiggle * 2 - 1) * frame_jiggle
+            y_jiggle = np.random.random()
+            y_jiggle = (y_jiggle * 2 - 1) * frame_jiggle
+            jiggled_dims[0] += x_jiggle
+            jiggled_dims[1] += y_jiggle
+            tear_alpha = (np.sin((update_frames + frame_number) / 4) + 1) / 2
+            ax = figure.add_axes(jiggled_dims)
+            california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
+            coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
+            for x, y, label in zip(california_highpop_gdf.geometry.x, california_highpop_gdf.geometry.y,
+                                   california_highpop_gdf["NAME"]):
+                ax.annotate(label, xy=(x, y), xytext=(15, -5), textcoords="offset points", zorder=3, fontsize=30)
+            ax.set_xlim(-125, -116.111)
+            ax.set_ylim(33.5, 38)
+            faults_gdf.loc[fault_mask].plot(color="red", ax=ax, zorder=1, alpha=tear_alpha, linewidth=2)
+            figure.set_facecolor("None")
+            ax.axis("off")
+        im = convert_plot_to_image(figure)
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    # Stay black for the remainder
+    black_screen = np.array(im)
+    black_screen[:, :, :] = 0
+    im = Image.fromarray(black_screen)
+    while True:
+        yield im
+
+
 def main():
     anim_file_path = Path("./test.mp4")
     figure = plt.figure(figsize=(19.2, 10.8))
@@ -626,16 +732,45 @@ def main():
                 bottom_offset=0.37,
             ),
         )
+        terrain = Scene(
+            724,
+            844,
+            1,
+            draw_terrain(
+                axes_dims = [0.05, 0.2, 0.9, 0.8],
+                fade_in_frames = 24,
+                update_frames = 72,
+                fade_out_frames = 24,
+                frame_jiggle = 0.01,#0.05
+            )
+        )
+        tears_text = Scene(
+            676,
+            844,
+            2,
+            draw_text(
+                sentence="Like tears in terrain",
+                text_pos_list=[11, 21],
+                alpha_transitions=48,
+                persist_frames=48,
+                fade_out_frames=24,
+                font_size=60,
+                left_offset=0.3,
+                bottom_offset=0,
+            ),
+        )
         active_scenes_list: List[Scene] = [
-            intro_text,
-            eye,
-            heatmap,
-            gaussian,
-            heatmaps_text,
-            learning_curve,
-            residuals_text,
-            fade_text_1,
-            fade_text_2,
+            # intro_text,
+            # eye,
+            # heatmap,
+            # gaussian,
+            # heatmaps_text,
+            # learning_curve,
+            # residuals_text,
+            # fade_text_1,
+            # fade_text_2,
+            terrain,
+            tears_text
         ]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
