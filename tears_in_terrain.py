@@ -11,6 +11,7 @@ from PIL import Image
 from matplotlib.animation import FFMpegFileWriter
 from matplotlib import collections as mc
 import matplotlib.patches as patches
+from matplotlib.patches import Circle, Wedge
 import scipy.stats as stats
 import geopandas as gpd
 from shapely.geometry import Polygon
@@ -607,6 +608,37 @@ def draw_terrain(
         yield im
 
 
+def draw_smiley(
+    pos_x: float,
+    pos_y: float,
+    fade_in_frames: int
+) -> Generator[Image.Image, None, None]:
+
+    figure = plt.figure(figsize=(19.2, 10.8))
+    fade_in_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
+    for alpha in fade_in_alpha:
+        figure.clear()
+        ax = figure.add_axes([0,0,1,1])
+        ax.set_xlim(-960, 960)
+        ax.set_ylim(-540, 540)
+        face_circle = Circle((pos_x, pos_y), 200, color="yellow", alpha=alpha)
+        face_circle.set_facecolor("yellow")
+        ax.add_patch(face_circle)
+        left_eye_circle = Circle((pos_x - 80, pos_y + 50), 50, color="black", alpha=alpha)
+        ax.add_patch(left_eye_circle)
+        right_eye_circle = Circle((pos_x + 80, pos_y + 50), 50, color="black", alpha=alpha)
+        ax.add_patch(right_eye_circle)
+        smile = Wedge((pos_x, pos_y - 50), 100, 180, 0, color="black", alpha=alpha)
+        ax.add_patch(smile)
+        figure.set_facecolor("None")
+        ax.axis("off")
+        im = convert_plot_to_image(figure)
+        yield im
+
+    while True:
+        yield im
+
+
 def main():
     anim_file_path = Path("./test.mp4")
     figure = plt.figure(figsize=(19.2, 10.8))
@@ -759,18 +791,61 @@ def main():
                 bottom_offset=0,
             ),
         )
+        pi_text_1 = Scene(
+            845,
+            1061,
+            2,
+            draw_text(
+                sentence="Time to pi",
+                text_pos_list=[4,10],
+                alpha_transitions=72,
+                persist_frames=72,
+                fade_out_frames=0,
+                font_size=80,
+                left_offset=0.08,
+                bottom_offset=0.8,
+            ),
+        )
+        pi_text_2 = Scene(
+            1013,
+            1061,
+            1,
+            draw_text(
+                sentence="Time to pip install matplotlib",
+                text_pos_list=[30],
+                alpha_transitions=24,
+                persist_frames=100,
+                fade_out_frames=0,
+                font_size=80,
+                left_offset=0.08,
+                bottom_offset=0.8,
+            ),
+        )
+        smiley = Scene(
+            1013,
+            1061,
+            2,
+            draw_smiley(
+                fade_in_frames=24,
+                pos_x=0,
+                pos_y=0
+            ),
+        )
         active_scenes_list: List[Scene] = [
-            # intro_text,
-            # eye,
-            # heatmap,
-            # gaussian,
-            # heatmaps_text,
-            # learning_curve,
-            # residuals_text,
-            # fade_text_1,
-            # fade_text_2,
+            intro_text,
+            eye,
+            heatmap,
+            gaussian,
+            heatmaps_text,
+            learning_curve,
+            residuals_text,
+            fade_text_1,
+            fade_text_2,
             terrain,
-            tears_text
+            tears_text,
+            pi_text_1,
+            pi_text_2,
+            smiley
         ]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
