@@ -394,13 +394,13 @@ def draw_learning_curve_axes(
     topo_ax.text(310, -20, r"$\sum_{j=1}^n x_jw_j$", fontsize=30)
     topo_ax.text(604, -10, r"$\frac{\mathrm{1} }{\mathrm{1} + e^{-net}}$", fontsize=30)
     for i in range(41):
-        topo_ax.text(0, -425 + i * 21, "1", fontsize=10)
-    topo_ax.text(880, -10, "0.7", fontsize=20)
+        topo_ax.text(0, -425 + i * 21, f"{np.random.randint(0,2)}", fontsize=10, color="green")
+    topo_ax.text(880, -10, f"{np.random.random():0.3f}", fontsize=20, color="green")
     learning_curve_ax = figure.add_axes(learning_curve_axes_dims)
     learning_curve_ax.set_xlim(-1, 21)
     learning_curve_ax.set_ylim(0.01, 1.01)
-    learning_curve_ax.set_xlabel("Epochs")
-    learning_curve_ax.set_ylabel("Error")
+    learning_curve_ax.set_xlabel("Epochs", fontsize=18)
+    learning_curve_ax.set_ylabel("Error", fontsize=18)
     learning_curve_ax.get_xaxis().set_ticks([])
     learning_curve_ax.get_yaxis().set_ticks([])
     learning_curve_ax.spines["right"].set_visible(False)
@@ -431,7 +431,7 @@ def draw_learning_curve(
     line_widths = np.ones(weights + 2) * 2
     line_widths[weights:] = 5
 
-    epoch = np.linspace(0, 20, 96)
+    epoch = np.linspace(0, 20, update_frames)
     error = (1.8 - 1.7 / (1 + np.exp(-epoch))) + np.random.randn(96) * np.linspace(
         0, 0.005, 96
     )
@@ -453,6 +453,9 @@ def draw_learning_curve(
             )
             figure.set_facecolor("None")
         im = convert_plot_to_image(figure)
+        yield im
+
+    for frame in range(persist_frames):
         yield im
 
 
