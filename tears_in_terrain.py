@@ -15,7 +15,6 @@ import scipy.stats as stats
 
 BACKGROUND_COLOUR = "#000000FF"
 FRAME_RATE = 24
-LEFT_ALIGN = 0.08
 
 
 @dataclass
@@ -122,6 +121,9 @@ def draw_text(
     alpha_transitions: int,
     persist_frames: int,
     fade_out_frames: int,
+    font_size: int,
+    left_offset: float,
+    bottom_offset: float,
 ) -> Generator[Image.Image, None, None]:
     """
     Render the next frame
@@ -138,10 +140,10 @@ def draw_text(
 
             if idx > 0:
                 text_axes.text(
-                    LEFT_ALIGN,
-                    0,
+                    left_offset,
+                    bottom_offset,
                     s=sentence[: text_pos_list[idx - 1]],
-                    fontsize=48,
+                    fontsize=font_size,
                     style="oblique",
                     ha="left",
                     va="bottom",
@@ -150,10 +152,10 @@ def draw_text(
                 )
 
             text_axes.text(
-                LEFT_ALIGN,
-                0,
+                left_offset,
+                bottom_offset,
                 s=sentence[:text_pos],
-                fontsize=48,
+                fontsize=font_size,
                 style="oblique",
                 ha="left",
                 va="bottom",
@@ -174,10 +176,10 @@ def draw_text(
         text_axes = figure.add_axes([0.0, 0.0, 1.0, 1.0])
         text_axes.axis("off")
         text_axes.text(
-            LEFT_ALIGN,
-            0,
+            left_offset,
+            bottom_offset,
             s=sentence,
-            fontsize=48,
+            fontsize=font_size,
             style="oblique",
             ha="left",
             va="bottom",
@@ -436,16 +438,32 @@ def draw_learning_curve(
         0, 0.005, update_frames
     )
 
-    true_weights = np.random.random(weights)
-    colors[:weights, 2] = true_weights + np.random.random() * error[0] * 2 - error[0]
-    colors[colors[:, 2] > 1, 2] = 1
-    colors[colors[:, 2] < 0, 2] = 0
-
     figure = plt.figure(figsize=(19.2, 10.8))
+    colors[:weights, 2] = np.random.random(weights)
+    with plt.style.context("dark_background"):
+        draw_learning_curve_axes(
+            topo_axes_dims,
+            learning_curve_axes_dims,
+            epoch,
+            error,
+            figure,
+            lines,
+            colors,
+            line_widths,
+            0
+        )
+        figure.set_facecolor("None")
+    im = convert_plot_to_image(figure)
+
+    # Fade in the axes over this many frames
+    fade_in_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
+    for alpha in fade_in_alpha:
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
     for frame in range(update_frames):
-        colors[:weights, 2] = true_weights + np.random.random() * error[frame] * 2 - error[frame]
-        colors[colors[:, 2] > 1, 2] = 1
-        colors[colors[:, 2] < 0, 2] = 0
         colors[:weights, 2] = np.random.random(weights)
         figure.clear()
         with plt.style.context("dark_background"):
@@ -467,6 +485,21 @@ def draw_learning_curve(
     for frame in range(persist_frames):
         yield im
 
+    # Fade out the image over this many frames
+    fade_out_alpha = np.power(np.linspace(1, 0, fade_out_frames), 2)
+    for alpha in fade_out_alpha:
+        pixels = np.array(im)
+        alpha_layer = pixels[:, :, 3]
+        alpha_layer[alpha_layer > 0] = int(255 * alpha)
+        yield Image.fromarray(pixels)
+
+    # Stay black for the remainder
+    black_screen = np.array(im)
+    black_screen[:, :, :] = 0
+    im = Image.fromarray(black_screen)
+    while True:
+        yield im
+
 
 def main():
     anim_file_path = Path("./test.mp4")
@@ -484,6 +517,9 @@ def main():
                 alpha_transitions=60,
                 persist_frames=0,
                 fade_out_frames=24,
+                font_size=48,
+                left_offset=0.08,
+                bottom_offset=0.0
             ),
         )
         eye = Scene(
@@ -527,11 +563,14 @@ def main():
                 alpha_transitions=60,
                 persist_frames=24,
                 fade_out_frames=24,
+                font_size=48,
+                left_offset=0.08,
+                bottom_offset=0.0,
             ),
         )
         learning_curve = Scene(
-            0,
-            96,
+            314,
+            482,
             1,
             draw_learning_curve(
                 topo_axes_dims=[0.01, 0.15, 0.5, 0.8],
@@ -542,13 +581,61 @@ def main():
                 fade_out_frames=24,
             ),
         )
+        residuals_text = Scene(
+            314,
+            482,
+            2,
+            draw_text(
+                sentence="I watched residuals diminish down the arc of ten thousand weights",
+                text_pos_list=[29, 65],
+                alpha_transitions=60,
+                persist_frames=24,
+                fade_out_frames=24,
+                font_size=40,
+                left_offset=0.015,
+                bottom_offset=0.0,
+            ),
+        )
+        fade_text_1 = Scene(
+            483,
+            675,
+            2,
+            draw_text(
+                sentence="All these visuals",
+                text_pos_list=[17],
+                alpha_transitions=60,
+                persist_frames=84,
+                fade_out_frames=48,
+                font_size=100,
+                left_offset=0.2,
+                bottom_offset=0.53,
+            ),
+        )
+        fade_text_2 = Scene(
+            542,
+            675,
+            2,
+            draw_text(
+                sentence="will fade in time",
+                text_pos_list=[17],
+                alpha_transitions=60,
+                persist_frames=24,
+                fade_out_frames=48,
+                font_size=100,
+                left_offset=0.2,
+                bottom_offset=0.37,
+            ),
+        )
         active_scenes_list: List[Scene] = [
-            # intro_text,
-            # eye,
-            # heatmap,
-            # gaussian,
-            # heatmaps_text,
-            learning_curve
+            intro_text,
+            eye,
+            heatmap,
+            gaussian,
+            heatmaps_text,
+            learning_curve,
+            residuals_text,
+            fade_text_1,
+            fade_text_2,
         ]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
