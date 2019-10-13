@@ -374,8 +374,45 @@ def draw_gaussian(
         yield im
 
 
-def draw_learning(
-    axes_dims: List[float],
+def draw_learning_curve_axes(
+    topo_axes_dims: List[float],
+    learning_curve_axes_dims: List[float],
+    epoch: np.ndarray,
+    error: np.ndarray,
+    figure: np.ndarray,
+    lines: np.ndarray,
+    colors: np.ndarray,
+    line_widths: np.ndarray,
+    frame: int,
+):
+    lc = mc.LineCollection(lines, colors=colors, linewidths=line_widths)
+    topo_ax = figure.add_axes(topo_axes_dims)
+    topo_ax.set_xlim((0, 960))
+    topo_ax.set_ylim((-420, 420))
+    topo_ax.axis("off")
+    topo_ax.add_collection(lc)
+    topo_ax.text(310, -20, r"$\sum_{j=1}^n x_jw_j$", fontsize=30)
+    topo_ax.text(604, -10, r"$\frac{\mathrm{1} }{\mathrm{1} + e^{-net}}$", fontsize=30)
+    for i in range(41):
+        topo_ax.text(0, -425 + i * 21, "1", fontsize=10)
+    topo_ax.text(880, -10, "0.7", fontsize=20)
+    learning_curve_ax = figure.add_axes(learning_curve_axes_dims)
+    learning_curve_ax.set_xlim(-1, 21)
+    learning_curve_ax.set_ylim(0.01, 1.01)
+    learning_curve_ax.set_xlabel("Epochs")
+    learning_curve_ax.set_ylabel("Error")
+    learning_curve_ax.get_xaxis().set_ticks([])
+    learning_curve_ax.get_yaxis().set_ticks([])
+    learning_curve_ax.spines["right"].set_visible(False)
+    learning_curve_ax.spines["top"].set_visible(False)
+    learning_curve_ax.spines["left"].set_linewidth(2)
+    learning_curve_ax.spines["bottom"].set_linewidth(2)
+    learning_curve_ax.plot(epoch[:frame], error[:frame], linewidth=3)
+
+
+def draw_learning_curve(
+    topo_axes_dims: List[float],
+    learning_curve_axes_dims: List[float],
     fade_in_frames: int,
     update_frames: int,
     persist_frames: int,
@@ -394,22 +431,30 @@ def draw_learning(
     line_widths = np.ones(weights + 2) * 2
     line_widths[weights:] = 5
 
-    lc = mc.LineCollection(lines, colors=colors, linewidths=line_widths)
+    epoch = np.linspace(0, 20, 96)
+    error = (1.8 - 1.7 / (1 + np.exp(-epoch))) + np.random.randn(96) * np.linspace(
+        0, 0.005, 96
+    )
+
     figure = plt.figure(figsize=(19.2, 10.8))
-    with plt.style.context("dark_background"):
-        topo_ax = figure.add_axes([0.0, 0.2, 0.5, 0.8])
-        topo_ax.set_xlim((0, 960))
-        topo_ax.set_ylim((-420, 420))
-        topo_ax.axis("off")
-        topo_ax.add_collection(lc)
-        topo_ax.text(310, -20, r"$\sum_{j=1}^n x_jw_j$", fontsize=30)
-        topo_ax.text(604, -10, r"$\frac{\mathrm{1} }{\mathrm{1} + e^{-net}}$", fontsize=30)
-        for i in range(41):
-            topo_ax.text(0, -425 + i * 21, "1", fontsize=10)
-        topo_ax.text(880, -10, "0.7", fontsize=20)
-        figure.set_facecolor("None")
-    im = convert_plot_to_image(figure)
-    yield im
+    for frame in range(update_frames):
+        figure.clear()
+        with plt.style.context("dark_background"):
+            draw_learning_curve_axes(
+                topo_axes_dims,
+                learning_curve_axes_dims,
+                epoch,
+                error,
+                figure,
+                lines,
+                colors,
+                line_widths,
+                frame
+            )
+            figure.set_facecolor("None")
+        im = convert_plot_to_image(figure)
+        yield im
+
 
 def main():
     anim_file_path = Path("./test.mp4")
@@ -472,12 +517,26 @@ def main():
                 fade_out_frames=24,
             ),
         )
+        learning_curve = Scene(
+            0,
+            96,
+            1,
+            draw_learning_curve(
+                topo_axes_dims=[0.01, 0.15, 0.5, 0.8],
+                learning_curve_axes_dims=[0.54, 0.15, 0.44, 0.8],
+                fade_in_frames=24,
+                update_frames=96,
+                persist_frames=24,
+                fade_out_frames=24,
+            ),
+        )
         active_scenes_list: List[Scene] = [
-            intro_text,
-            eye,
-            heatmap,
-            gaussian,
-            heatmaps_text,
+            # intro_text,
+            # eye,
+            # heatmap,
+            # gaussian,
+            # heatmaps_text,
+            learning_curve
         ]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
