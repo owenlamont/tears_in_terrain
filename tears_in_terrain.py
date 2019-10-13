@@ -73,7 +73,7 @@ def draw_eye(
             color="white",
             zorder=1,
         )
-        ax.plot(iris[0, 0:i], iris[1, 0:i], linewidth=5, color="blue", zorder=3)
+        ax.plot(iris[0, 0:i], iris[1, 0:i], linewidth=5, color="steelblue", zorder=3)
         ax.fill_between(
             intervals,
             np.ones(interval_count) * 5,
@@ -650,13 +650,13 @@ def main():
             169,
             1,
             draw_text(
-                sentence="I have seen things you people would not believe",
-                text_pos_list=[19, 47],
+                sentence="I've seen things you people wouldn't believe",
+                text_pos_list=[16, 44],
                 alpha_transitions=60,
                 persist_frames=0,
                 fade_out_frames=24,
                 font_size=48,
-                left_offset=0.08,
+                left_offset=0.12,
                 bottom_offset=0.0
             ),
         )
