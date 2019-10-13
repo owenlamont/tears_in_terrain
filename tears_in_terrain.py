@@ -433,11 +433,20 @@ def draw_learning_curve(
 
     epoch = np.linspace(0, 20, update_frames)
     error = (1.8 - 1.7 / (1 + np.exp(-epoch))) + np.random.randn(96) * np.linspace(
-        0, 0.005, 96
+        0, 0.005, update_frames
     )
+
+    true_weights = np.random.random(weights)
+    colors[:weights, 2] = true_weights + np.random.random() * error[0] * 2 - error[0]
+    colors[colors[:, 2] > 1, 2] = 1
+    colors[colors[:, 2] < 0, 2] = 0
 
     figure = plt.figure(figsize=(19.2, 10.8))
     for frame in range(update_frames):
+        colors[:weights, 2] = true_weights + np.random.random() * error[frame] * 2 - error[frame]
+        colors[colors[:, 2] > 1, 2] = 1
+        colors[colors[:, 2] < 0, 2] = 0
+        colors[:weights, 2] = np.random.random(weights)
         figure.clear()
         with plt.style.context("dark_background"):
             draw_learning_curve_axes(
