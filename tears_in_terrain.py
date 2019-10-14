@@ -221,6 +221,7 @@ class FireAutomata:
     """
     Class for representing and animating a fire effect automta
     """
+
     height: int
     width: int
     decay: float
@@ -503,9 +504,9 @@ def draw_learning_curve(
     line_widths[weights:] = 5
 
     epoch = np.linspace(0, 20, update_frames)
-    error = (1.8 - 1.7 / (1 + np.exp(-epoch))) + np.random.randn(96) * np.linspace(
-        0, 0.005, update_frames
-    )
+    error = (1.8 - 1.7 / (1 + np.exp(-epoch))) + np.random.randn(
+        update_frames
+    ) * np.linspace(0, 0.005, update_frames)
 
     figure = plt.figure(figsize=(19.2, 10.8))
     colors[:weights, 2] = np.random.random(weights)
@@ -612,7 +613,7 @@ def draw_terrain(
         with plt.style.context("dark_background"):
             ax = figure.add_axes(axes_dims)
             california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
-            coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
+            coastlines_gdf.plot(ax=ax, zorder=1, color="forestgreen")
             for x, y, label in zip(
                 california_highpop_gdf.geometry.x,
                 california_highpop_gdf.geometry.y,
@@ -653,7 +654,7 @@ def draw_terrain(
             tear_alpha = (np.sin(frame_number / 4) + 1) / 2
             ax = figure.add_axes(jiggled_dims)
             california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
-            coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
+            coastlines_gdf.plot(ax=ax, zorder=1, color="forestgreen")
             for x, y, label in zip(
                 california_highpop_gdf.geometry.x,
                 california_highpop_gdf.geometry.y,
@@ -692,7 +693,7 @@ def draw_terrain(
             tear_alpha = (np.sin((update_frames + frame_number) / 4) + 1) / 2
             ax = figure.add_axes(jiggled_dims)
             california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
-            coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
+            coastlines_gdf.plot(ax=ax, zorder=1, color="forestgreen")
             for x, y, label in zip(
                 california_highpop_gdf.geometry.x,
                 california_highpop_gdf.geometry.y,
@@ -791,16 +792,16 @@ def main():
             ),
         )
         eye = Scene(
-            0,
-            193,
+            intro_text.start_frame,
+            intro_text.end_frame,
             0,
             draw_eye(
                 axes_dims=[0, 0.22, 1.0, 0.8], persist_frames=24, fade_out_frames=24
             ),
         )
         heatmap = Scene(
-            121,
-            313,
+            intro_text.end_frame - 47,
+            intro_text.end_frame + 145,
             2,
             draw_fire_automata(
                 axes_dims=[0.2, 0.35, 0.6, 0.6],
@@ -810,8 +811,8 @@ def main():
             ),
         )
         gaussian = Scene(
-            169,
-            313,
+            intro_text.end_frame + 1,
+            intro_text.end_frame + 145,
             1,
             draw_gaussian(
                 axes_dims=[0.05, 0.1, 0.9, 0.25],
@@ -837,27 +838,27 @@ def main():
             ),
         )
         learning_curve = Scene(
-            314,
-            482,
+            heatmaps_text.end_frame + 1,
+            heatmaps_text.end_frame + 277,
             1,
             draw_learning_curve(
                 topo_axes_dims=[0.01, 0.15, 0.5, 0.8],
                 learning_curve_axes_dims=[0.54, 0.15, 0.44, 0.8],
                 fade_in_frames=24,
-                update_frames=96,
-                persist_frames=24,
+                update_frames=156,
+                persist_frames=72,
                 fade_out_frames=24,
             ),
         )
         residuals_text = Scene(
-            314,
-            482,
+            heatmaps_text.end_frame + 1,
+            heatmaps_text.end_frame + 277,
             2,
             draw_text(
                 sentence="I watched residuals diminish down the arc of ten thousand weights",
-                text_pos_list=[29, 65],
+                text_pos_list=[10, 29, 65],
                 alpha_transitions=60,
-                persist_frames=24,
+                persist_frames=72,
                 fade_out_frames=24,
                 font_size=40,
                 left_offset=0.015,
@@ -865,8 +866,8 @@ def main():
             ),
         )
         fade_text_1 = Scene(
-            483,
-            675,
+            residuals_text.end_frame + 1,
+            residuals_text.end_frame + 193,
             2,
             draw_text(
                 sentence="All these visuals",
@@ -880,8 +881,8 @@ def main():
             ),
         )
         fade_text_2 = Scene(
-            542,
-            675,
+            residuals_text.end_frame + 60,
+            residuals_text.end_frame + 193,
             2,
             draw_text(
                 sentence="will fade in time",
@@ -895,8 +896,8 @@ def main():
             ),
         )
         terrain = Scene(
-            724,
-            844,
+            fade_text_2.end_frame + 49,
+            fade_text_2.end_frame + 169,
             1,
             draw_terrain(
                 axes_dims=[0.05, 0.2, 0.9, 0.8],
@@ -907,8 +908,8 @@ def main():
             ),
         )
         tears_text = Scene(
-            676,
-            844,
+            fade_text_2.end_frame + 1,
+            fade_text_2.end_frame + 169,
             2,
             draw_text(
                 sentence="Like tears in terrain",
@@ -922,8 +923,8 @@ def main():
             ),
         )
         pi_text_1 = Scene(
-            845,
-            1061,
+            tears_text.end_frame + 1,
+            tears_text.end_frame + 217,
             2,
             draw_text(
                 sentence="Time to pi",
@@ -937,8 +938,8 @@ def main():
             ),
         )
         pi_text_2 = Scene(
-            1013,
-            1061,
+            tears_text.end_frame + 169,
+            tears_text.end_frame + 217,
             1,
             draw_text(
                 sentence="Time to pip install matplotlib",
@@ -951,7 +952,12 @@ def main():
                 bottom_offset=0.8,
             ),
         )
-        smiley = Scene(1013, 1061, 2, draw_smiley(fade_in_frames=24, pos_x=0, pos_y=0))
+        smiley = Scene(
+            tears_text.end_frame + 169,
+            tears_text.end_frame + 217,
+            2,
+            draw_smiley(fade_in_frames=24, pos_x=0, pos_y=0),
+        )
         active_scenes_list: List[Scene] = [
             intro_text,
             eye,
