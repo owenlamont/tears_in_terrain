@@ -856,7 +856,7 @@ def main():
             2,
             draw_text(
                 sentence="I watched residuals diminish down the arc of ten thousand weights",
-                text_pos_list=[10, 29, 65],
+                text_pos_list=[10, 41, 65],
                 alpha_transitions=60,
                 persist_frames=72,
                 fade_out_frames=24,
