@@ -35,7 +35,7 @@ class Scene:
 
 def convert_plot_to_image(figure: figure.Figure) -> Image.Image:
     """
-    Converts the specified Matplotlib Figure into a PIL Image
+    Converts the specified matplotlib Figure into a PIL Image
     :param figure: Figure to convert
     :return: PIL Image
     """
@@ -49,6 +49,13 @@ def convert_plot_to_image(figure: figure.Figure) -> Image.Image:
 def draw_eye(
     axes_dims: List[float], persist_frames: int, fade_out_frames: int
 ) -> Generator[Image.Image, None, None]:
+    """
+    Generator method for rendering a stylized eye
+    :param axes_dims: offset and dimensions of the axes to render to
+    :param persist_frames: Number of frames to persist the frames to
+    :param fade_out_frames: Number of frames to fade out the eye
+    :return: Generator for producing PIL Image frames
+    """
     interval_count = 361
     angle = np.linspace(0, np.pi * 2.0, interval_count)
     radius = np.array([num % 2 for num in range(0, interval_count)]) * 2.5 + 1.5
@@ -130,8 +137,16 @@ def draw_text(
     bottom_offset: float,
 ) -> Generator[Image.Image, None, None]:
     """
-    Render the next frame
-    :return: The next render as a PIL Image
+    Renders a sentence with configurable phrase boundaries
+    :param sentence: Full text to render
+    :param text_pos_list: Character offsets in the sentence to fade in
+    :param alpha_transitions: Number of alpha increments to fade in each phrase
+    :param persist_frames: Number of frames to persist the sentence once drawn
+    :param fade_out_frames: Number of frames to fade out the sentence
+    :param font_size: Size of the font to render the sentence with
+    :param left_offset: axes offset for the text from the left boundary
+    :param bottom_offset: axes offset for the text from the bottom boundary
+    :return: Generator for producing PIL Image frames
     """
     im: Image.Image = Image.fromarray(np.zeros((1, 1, 4), dtype=np.uint8))
     figure = plt.figure(figsize=(19.2, 10.8))
@@ -203,6 +218,9 @@ def draw_text(
 
 @dataclass
 class FireAutomata:
+    """
+    Class for representing and animating a fire effect automta
+    """
     height: int
     width: int
     decay: float
@@ -215,6 +233,9 @@ class FireAutomata:
     width_max_index: int = field(init=False)
 
     def __post_init__(self):
+        """
+        Initialize the calculated properties
+        """
         self.heatmap = np.zeros((self.height, self.width))
         indices = np.arange(self.width)
         self.spawn_indices = np.random.choice(indices, 20)
@@ -224,6 +245,9 @@ class FireAutomata:
         self.width_max_index = self.width - 1
 
     def update_heatmap(self):
+        """
+        Update the fire automata by one frame
+        """
         swap_spawn = np.random.randint(len(self.spawn_indices))
         swap_non_spawn = np.random.randint(len(self.non_spawn_indices))
         self.spawn_indices[swap_spawn], self.non_spawn_indices[swap_non_spawn] = (
@@ -257,6 +281,14 @@ def draw_fire_automata(
     update_frames: int,
     fade_out_frames: int,
 ) -> Generator[Image.Image, None, None]:
+    """
+    Generator method for rendering the fire automata
+    :param axes_dims: Offset and dimensions of the axes
+    :param fade_in_frames: Number of frames to fade in the graphic
+    :param update_frames: Number of frames to update the graphic
+    :param fade_out_frames: Number of frames to fade out the graphic
+    :return: Generator for producing PIL Image frames
+    """
     im: Image.Image = Image.fromarray(np.zeros((1, 1, 4), dtype=np.uint8))
     fire_automata = FireAutomata(height=65, width=64, decay=0.95, spawn_points=20)
     figure = plt.figure(figsize=(19.2, 10.8))
@@ -317,6 +349,15 @@ def draw_gaussian(
     persist_frames: int,
     fade_out_frames: int,
 ) -> Generator[Image.Image, None, None]:
+    """
+    Generator method for drawing Gaussian
+    :param axes_dims: Offset and dimensions of the plot axes
+    :param fade_in_frames: Number of frames to fade in the graphic
+    :param update_frames: Number of frames to update the graphic
+    :param persist_frames: Number of frames to persist the graphic
+    :param fade_out_frames: Number of frames to fade out the graphic
+    :return: generator for producing the PIL Image frames
+    """
     figure = plt.figure(figsize=(19.2, 10.8))
     with plt.style.context("dark_background"):
         ax = figure.add_axes(axes_dims)
@@ -385,12 +426,24 @@ def draw_learning_curve_axes(
     learning_curve_axes_dims: List[float],
     epoch: np.ndarray,
     error: np.ndarray,
-    figure: np.ndarray,
+    figure: figure.Figure,
     lines: np.ndarray,
     colors: np.ndarray,
     line_widths: np.ndarray,
     frame: int,
 ):
+    """
+    Render the mock logistic regression and learning curve to their respective axes
+    :param topo_axes_dims: logistic regression axes
+    :param learning_curve_axes_dims: learning curve plot axes
+    :param epoch: array of values for learning curve epoch
+    :param error: array of error values for learning curve
+    :param figure: figure to render the axes to
+    :param lines: Lines in the logistic regression topology
+    :param colors: Colors of the lines in the logistic regression
+    :param line_widths: Widths of the lines in the logistic regression
+    :param frame: frame number of the animation
+    """
     lc = mc.LineCollection(lines, colors=colors, linewidths=line_widths)
     topo_ax = figure.add_axes(topo_axes_dims)
     topo_ax.set_xlim((0, 960))
@@ -400,7 +453,9 @@ def draw_learning_curve_axes(
     topo_ax.text(310, -20, r"$\sum_{j=1}^n x_jw_j$", fontsize=30)
     topo_ax.text(604, -10, r"$\frac{\mathrm{1} }{\mathrm{1} + e^{-net}}$", fontsize=30)
     for i in range(41):
-        topo_ax.text(0, -425 + i * 21, f"{np.random.randint(0,2)}", fontsize=10, color="green")
+        topo_ax.text(
+            0, -425 + i * 21, f"{np.random.randint(0,2)}", fontsize=10, color="green"
+        )
     topo_ax.text(880, -10, f"{np.random.random():0.3f}", fontsize=20, color="green")
     learning_curve_ax = figure.add_axes(learning_curve_axes_dims)
     learning_curve_ax.set_xlim(-1, 21)
@@ -424,6 +479,16 @@ def draw_learning_curve(
     persist_frames: int,
     fade_out_frames: int,
 ) -> Generator[Image.Image, None, None]:
+    """
+    Generator method to draw a mock logistic regression and learning curve
+    :param topo_axes_dims: logistic regression topology axes
+    :param learning_curve_axes_dims: learning curve plot axes
+    :param fade_in_frames: Number of frames to fade in the visual
+    :param update_frames: Number of frames to animate the graphic for
+    :param persist_frames: Number of frames to persist the graphic
+    :param fade_out_frames: Number of frames to fade out the graphic
+    :return: generator for producing the PIL Image frames
+    """
     weights = 41
     lines = np.zeros((weights + 2, 2, 2))
     lines[:weights, 0, 0] = 20
@@ -454,7 +519,7 @@ def draw_learning_curve(
             lines,
             colors,
             line_widths,
-            0
+            0,
         )
         figure.set_facecolor("None")
     im = convert_plot_to_image(figure)
@@ -480,7 +545,7 @@ def draw_learning_curve(
                 lines,
                 colors,
                 line_widths,
-                frame
+                frame,
             )
             figure.set_facecolor("None")
         im = convert_plot_to_image(figure)
@@ -510,10 +575,28 @@ def draw_terrain(
     fade_in_frames: int,
     update_frames: int,
     fade_out_frames: int,
-    frame_jiggle: float
+    frame_jiggle: float,
 ) -> Generator[Image.Image, None, None]:
-    coastlines_gdf = gpd.read_file("./natural_earth_vector/10m_physical/ne_10m_land_scale_rank2.shp")
-    populated_gdf = gpd.read_file("./natural_earth_vector/10m_cultural/ne_10m_populated_places.dbf")
+    """
+    Generator method to draw California area, large cities and faults
+    :param axes_dims: matplotlib offset and dimensions
+    :param fade_in_frames: Number of frames to fade in graphic
+    :param update_frames: Number of frames to animate for
+    :param fade_out_frames: Number of frames to fade out the graphic
+    :param frame_jiggle: Random offset to apply to the axes each animation
+    :return: generator to produce the PIL Image frames
+    """
+    # Downloaded http://naciscdn.org/naturalearth/packages/natural_earth_vector.zip and
+    # unzipped into project directory
+    coastlines_gdf = gpd.read_file(
+        "./natural_earth_vector/10m_physical/ne_10m_land_scale_rank2.shp"
+    )
+    populated_gdf = gpd.read_file(
+        "./natural_earth_vector/10m_cultural/ne_10m_populated_places.dbf"
+    )
+
+    # Downloaded https://earthquake.usgs.gov/static/lfs/nshm/qfaults/Qfaults_GIS.zip and
+    # unzipped into project directory
     faults_gdf = gpd.read_file("./GIS Files/Shapefile/QFaults.shp")
     area = Polygon([(-124, 33.5), (-124, 38), (-115, 38), (-115, 33.5)])
     pop_mask = populated_gdf.within(area)
@@ -530,13 +613,25 @@ def draw_terrain(
             ax = figure.add_axes(axes_dims)
             california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
             coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
-            for x, y, label in zip(california_highpop_gdf.geometry.x, california_highpop_gdf.geometry.y,
-                                   california_highpop_gdf["NAME"]):
-                ax.annotate(label, xy=(x, y), xytext=(15, -5), textcoords="offset points", zorder=3, fontsize=30)
+            for x, y, label in zip(
+                california_highpop_gdf.geometry.x,
+                california_highpop_gdf.geometry.y,
+                california_highpop_gdf["NAME"],
+            ):
+                ax.annotate(
+                    label,
+                    xy=(x, y),
+                    xytext=(15, -5),
+                    textcoords="offset points",
+                    zorder=3,
+                    fontsize=30,
+                )
             ax.set_xlim(-125, -116.111)
             ax.set_ylim(33.5, 38)
             fault_mask = faults_gdf.intersects(area)
-            faults_gdf.loc[fault_mask].plot(color="red", ax=ax, zorder=1, alpha=0, linewidth=2)
+            faults_gdf.loc[fault_mask].plot(
+                color="red", ax=ax, zorder=1, alpha=0, linewidth=2
+            )
             figure.set_facecolor("None")
             ax.axis("off")
         im = convert_plot_to_image(figure)
@@ -555,16 +650,28 @@ def draw_terrain(
             y_jiggle = (y_jiggle * 2 - 1) * frame_jiggle
             jiggled_dims[0] += x_jiggle
             jiggled_dims[1] += y_jiggle
-            tear_alpha = (np.sin(frame_number/4) + 1) / 2
+            tear_alpha = (np.sin(frame_number / 4) + 1) / 2
             ax = figure.add_axes(jiggled_dims)
             california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
             coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
-            for x, y, label in zip(california_highpop_gdf.geometry.x, california_highpop_gdf.geometry.y,
-                                   california_highpop_gdf["NAME"]):
-                ax.annotate(label, xy=(x, y), xytext=(15, -5), textcoords="offset points", zorder=3, fontsize=30)
+            for x, y, label in zip(
+                california_highpop_gdf.geometry.x,
+                california_highpop_gdf.geometry.y,
+                california_highpop_gdf["NAME"],
+            ):
+                ax.annotate(
+                    label,
+                    xy=(x, y),
+                    xytext=(15, -5),
+                    textcoords="offset points",
+                    zorder=3,
+                    fontsize=30,
+                )
             ax.set_xlim(-125, -116.111)
             ax.set_ylim(33.5, 38)
-            faults_gdf.loc[fault_mask].plot(color="red", ax=ax, zorder=1, alpha=tear_alpha, linewidth=2)
+            faults_gdf.loc[fault_mask].plot(
+                color="red", ax=ax, zorder=1, alpha=tear_alpha, linewidth=2
+            )
             figure.set_facecolor("None")
             ax.axis("off")
         im = convert_plot_to_image(figure)
@@ -586,12 +693,24 @@ def draw_terrain(
             ax = figure.add_axes(jiggled_dims)
             california_highpop_gdf.plot(ax=ax, zorder=2, color="blue", markersize=100)
             coastlines_gdf.plot(ax=ax, zorder=1, color="darkgoldenrod")
-            for x, y, label in zip(california_highpop_gdf.geometry.x, california_highpop_gdf.geometry.y,
-                                   california_highpop_gdf["NAME"]):
-                ax.annotate(label, xy=(x, y), xytext=(15, -5), textcoords="offset points", zorder=3, fontsize=30)
+            for x, y, label in zip(
+                california_highpop_gdf.geometry.x,
+                california_highpop_gdf.geometry.y,
+                california_highpop_gdf["NAME"],
+            ):
+                ax.annotate(
+                    label,
+                    xy=(x, y),
+                    xytext=(15, -5),
+                    textcoords="offset points",
+                    zorder=3,
+                    fontsize=30,
+                )
             ax.set_xlim(-125, -116.111)
             ax.set_ylim(33.5, 38)
-            faults_gdf.loc[fault_mask].plot(color="red", ax=ax, zorder=1, alpha=tear_alpha, linewidth=2)
+            faults_gdf.loc[fault_mask].plot(
+                color="red", ax=ax, zorder=1, alpha=tear_alpha, linewidth=2
+            )
             figure.set_facecolor("None")
             ax.axis("off")
         im = convert_plot_to_image(figure)
@@ -609,24 +728,32 @@ def draw_terrain(
 
 
 def draw_smiley(
-    pos_x: float,
-    pos_y: float,
-    fade_in_frames: int
+    pos_x: float, pos_y: float, fade_in_frames: int
 ) -> Generator[Image.Image, None, None]:
-
+    """
+    Generator method for rendering an emoji style smiley face
+    :param pos_x: x axes offset for the center of the smiley face
+    :param pos_y: y axes offset for the center of the smiley face
+    :param fade_in_frames: Number of frames to fade in the smiley face
+    :return: generator to produce the PIL Image frames
+    """
     figure = plt.figure(figsize=(19.2, 10.8))
     fade_in_alpha = np.power(np.linspace(0, 1, fade_in_frames), 2)
     for alpha in fade_in_alpha:
         figure.clear()
-        ax = figure.add_axes([0,0,1,1])
+        ax = figure.add_axes([0, 0, 1, 1])
         ax.set_xlim(-960, 960)
         ax.set_ylim(-540, 540)
         face_circle = Circle((pos_x, pos_y), 200, color="yellow", alpha=alpha)
         face_circle.set_facecolor("yellow")
         ax.add_patch(face_circle)
-        left_eye_circle = Circle((pos_x - 80, pos_y + 50), 50, color="black", alpha=alpha)
+        left_eye_circle = Circle(
+            (pos_x - 80, pos_y + 50), 50, color="black", alpha=alpha
+        )
         ax.add_patch(left_eye_circle)
-        right_eye_circle = Circle((pos_x + 80, pos_y + 50), 50, color="black", alpha=alpha)
+        right_eye_circle = Circle(
+            (pos_x + 80, pos_y + 50), 50, color="black", alpha=alpha
+        )
         ax.add_patch(right_eye_circle)
         smile = Wedge((pos_x, pos_y - 50), 100, 180, 0, color="black", alpha=alpha)
         ax.add_patch(smile)
@@ -640,6 +767,9 @@ def draw_smiley(
 
 
 def main():
+    """
+    Entry point for rendering the plot
+    """
     anim_file_path = Path("./test.mp4")
     figure = plt.figure(figsize=(19.2, 10.8))
 
@@ -657,7 +787,7 @@ def main():
                 fade_out_frames=24,
                 font_size=48,
                 left_offset=0.12,
-                bottom_offset=0.0
+                bottom_offset=0.0,
             ),
         )
         eye = Scene(
@@ -769,12 +899,12 @@ def main():
             844,
             1,
             draw_terrain(
-                axes_dims = [0.05, 0.2, 0.9, 0.8],
-                fade_in_frames = 24,
-                update_frames = 72,
-                fade_out_frames = 24,
-                frame_jiggle = 0.01,#0.05
-            )
+                axes_dims=[0.05, 0.2, 0.9, 0.8],
+                fade_in_frames=24,
+                update_frames=72,
+                fade_out_frames=24,
+                frame_jiggle=0.01,
+            ),
         )
         tears_text = Scene(
             676,
@@ -797,7 +927,7 @@ def main():
             2,
             draw_text(
                 sentence="Time to pi",
-                text_pos_list=[4,10],
+                text_pos_list=[4, 10],
                 alpha_transitions=72,
                 persist_frames=72,
                 fade_out_frames=0,
@@ -821,16 +951,7 @@ def main():
                 bottom_offset=0.8,
             ),
         )
-        smiley = Scene(
-            1013,
-            1061,
-            2,
-            draw_smiley(
-                fade_in_frames=24,
-                pos_x=0,
-                pos_y=0
-            ),
-        )
+        smiley = Scene(1013, 1061, 2, draw_smiley(fade_in_frames=24, pos_x=0, pos_y=0))
         active_scenes_list: List[Scene] = [
             intro_text,
             eye,
@@ -845,7 +966,7 @@ def main():
             tears_text,
             pi_text_1,
             pi_text_2,
-            smiley
+            smiley,
         ]
         active_scenes_list.sort(key=lambda scene: scene.zorder, reverse=True)
 
