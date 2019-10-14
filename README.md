@@ -1,2 +1,2 @@
-# tears_in_terrain
-Graphics demo
+# Tears in Terrain
+Graphics demo made with matplotlib
